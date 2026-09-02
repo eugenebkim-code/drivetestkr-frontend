@@ -495,3 +495,117 @@
   font-size: 32px;
   font-weight: 700;
 }
+
+.empty-hint {
+  color: var(--tg-hint-color);
+  font-size: 13px;
+}
+
+.profile-hero {
+  position: relative;
+  padding: var(--space-3) var(--space-1) 0;
+  overflow: hidden;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.profile-hero-glow {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, #f97316 35%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.profile-hero-streak {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-top: 4px;
+}
+
+.profile-hero-fire {
+  font-size: 38px;
+  line-height: 1;
+}
+
+.profile-hero-number {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.profile-hero-caption {
+  position: relative;
+  color: var(--tg-hint-color);
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.profile-checkin-btn {
+  position: relative;
+  width: 100%;
+  margin-top: var(--space-3);
+}
+
+.goal-picker {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.goal-option {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--tg-hint-color) 12%, transparent);
+  font-weight: 600;
+  font-size: 14px;
+  text-align: center;
+  transition: background 0.1s ease;
+}
+
+.goal-option.active {
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+}
+
+.goal-custom-row {
+  margin-bottom: 0;
+}
+
+.goal-custom-row .btn {
+  flex: 0 0 auto;
+}
+
+.goal-input {
+  flex: 1;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in srgb, var(--tg-hint-color) 30%, transparent);
+  background: transparent;
+  color: var(--tg-text-color);
+  font: inherit;
+}
+
+.goal-progress-caption {
+  font-size: 12px;
+  color: var(--tg-hint-color);
+  margin-top: 4px;
+}
+
+.exam-row-date {
+  margin-left: auto;
+  color: var(--tg-hint-color);
+  font-size: 12px;
+  flex-shrink: 0;
+}

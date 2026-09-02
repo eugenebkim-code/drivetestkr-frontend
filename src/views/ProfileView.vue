@@ -64,20 +64,22 @@ onMounted(load);
 
 <template>
   <div class="screen">
-    <h2>Личный кабинет</h2>
-
     <div v-if="loading">Загрузка…</div>
 
     <template v-else-if="profile">
-      <div class="card glass" style="text-align: center">
-        <p style="font-size: 32px; font-weight: 700">🔥 {{ profile.streak_days }}</p>
-        <p style="color: var(--tg-hint-color); font-size: 13px">
+      <div class="profile-hero">
+        <div class="profile-hero-glow" />
+        <p class="home-hero-eyebrow">Личный кабинет</p>
+        <div class="profile-hero-streak">
+          <span class="profile-hero-fire">🔥</span>
+          <span class="profile-hero-number">{{ profile.streak_days }}</span>
+        </div>
+        <p class="profile-hero-caption">
           {{ profile.streak_days === 1 ? "день подряд" : "дней подряд" }}
         </p>
         <button
-          class="btn"
+          class="btn profile-checkin-btn"
           type="button"
-          style="width: 100%; margin-top: var(--space-3)"
           :disabled="profile.checked_in_today || checkingIn"
           @click="checkin"
         >
@@ -85,67 +87,63 @@ onMounted(load);
         </button>
       </div>
 
-      <div class="card glass">
-        <p style="font-weight: 600; margin-bottom: var(--space-2)">Дневная цель</p>
-        <div class="nav-row" style="margin-bottom: var(--space-2)">
-          <button
-            v-for="opt in goalOptions"
-            :key="opt"
-            type="button"
-            class="btn"
-            :class="{ 'btn-secondary': profile.daily_goal !== opt }"
-            style="flex: 1"
-            @click="setGoal(opt)"
-          >
-            {{ opt }}
-          </button>
-        </div>
-        <div class="nav-row">
-          <input
-            v-model="customGoal"
-            type="number"
-            placeholder="Своё число"
-            style="
-              flex: 1;
-              padding: var(--space-2);
-              border-radius: var(--radius-md);
-              border: 1px solid var(--tg-hint-color);
-            "
-          />
-          <button class="btn btn-secondary" type="button" @click="setCustomGoal">Установить</button>
-        </div>
-
-        <template v-if="profile.daily_goal">
-          <div class="progress-bar" style="margin-top: var(--space-3)">
-            <div class="progress-bar-fill" :style="{ width: `${goalProgressPct}%` }" />
+      <section>
+        <p class="section-label">Дневная цель</p>
+        <div class="card glass">
+          <div class="goal-picker">
+            <button
+              v-for="opt in goalOptions"
+              :key="opt"
+              type="button"
+              class="goal-option"
+              :class="{ active: profile.daily_goal === opt }"
+              @click="setGoal(opt)"
+            >
+              {{ opt }}
+            </button>
           </div>
-          <p style="font-size: 12px; color: var(--tg-hint-color); margin-top: 4px">
-            Сегодня: {{ profile.today_progress }} / {{ profile.daily_goal }}
-          </p>
-        </template>
-      </div>
+          <div class="nav-row goal-custom-row">
+            <input v-model="customGoal" type="number" placeholder="Своё число" class="goal-input" />
+            <button class="btn btn-secondary" type="button" @click="setCustomGoal">Установить</button>
+          </div>
 
-      <div class="card glass">
-        <p style="font-weight: 600; margin-bottom: var(--space-2)">Интенсив: точность по неделям</p>
-        <DrillTrendChart v-if="profile.drill_weekly_accuracy.length" :weeks="profile.drill_weekly_accuracy" />
-        <p v-else style="color: var(--tg-hint-color); font-size: 13px">
-          Пройдите несколько вопросов в «Интенсиве», чтобы увидеть статистику
-        </p>
-      </div>
-
-      <div class="card glass">
-        <p style="font-weight: 600; margin-bottom: var(--space-2)">История экзаменов</p>
-        <p v-if="profile.exam_history.length === 0" style="color: var(--tg-hint-color); font-size: 13px">
-          Пока нет завершённых попыток
-        </p>
-        <div v-for="a in profile.exam_history" :key="a.id" class="result-row">
-          <span>{{ a.passed ? "✅" : "❌" }}</span>
-          <span>{{ a.score_points }}/100</span>
-          <span style="margin-left: auto; color: var(--tg-hint-color); font-size: 12px">
-            {{ formatDate(a.finished_at) }}
-          </span>
+          <template v-if="profile.daily_goal">
+            <div class="progress-bar" style="margin-top: var(--space-3)">
+              <div class="progress-bar-fill" :style="{ width: `${goalProgressPct}%` }" />
+            </div>
+            <p class="goal-progress-caption">Сегодня: {{ profile.today_progress }} / {{ profile.daily_goal }}</p>
+          </template>
         </div>
-      </div>
+      </section>
+
+      <section>
+        <p class="section-label">Интенсив: точность по неделям</p>
+        <div class="card glass">
+          <DrillTrendChart v-if="profile.drill_weekly_accuracy.length" :weeks="profile.drill_weekly_accuracy" />
+          <p v-else class="empty-hint">Пройдите несколько вопросов в «Интенсиве», чтобы увидеть статистику</p>
+        </div>
+      </section>
+
+      <section>
+        <p class="section-label">История экзаменов</p>
+        <p v-if="profile.exam_history.length === 0" class="empty-hint">Пока нет завершённых попыток</p>
+        <div v-else class="mode-list">
+          <div v-for="a in profile.exam_history" :key="a.id" class="mode-row exam-row">
+            <span
+              class="mode-icon"
+              :style="{
+                background: `color-mix(in srgb, ${a.passed ? 'var(--correct-color)' : 'var(--wrong-color)'} 22%, transparent)`,
+              }"
+              >{{ a.passed ? "✅" : "❌" }}</span
+            >
+            <span class="mode-row-text">
+              <span class="mode-row-title">{{ a.score_points }}/100</span>
+              <span class="mode-row-subtitle">{{ a.passed ? "Сдан" : "Не сдан" }}</span>
+            </span>
+            <span class="exam-row-date">{{ formatDate(a.finished_at) }}</span>
+          </div>
+        </div>
+      </section>
     </template>
   </div>
 </template>
