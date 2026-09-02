@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    // Without this, `vue-tsc -b` emits vite.config.js/.d.ts right next to
+    // vite.config.ts, which Vite then silently prefers over the .ts source —
+    // any later edits to vite.config.ts get ignored until the stale .js is
+    // deleted. Emitting elsewhere avoids that trap entirely.
+    "outDir": "./node_modules/.tsc-out"
+  },
+  "include": ["vite.config.ts"]
+}
