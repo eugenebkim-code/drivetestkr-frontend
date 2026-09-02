@@ -3,6 +3,7 @@ import { useMiniApp } from "vue-tg/7.0";
 import type {
   AdminStatsOut,
   AdminUserOut,
+  ChatMessage,
   CheckinOut,
   DrillSessionOut,
   ExamFinishIn,
@@ -30,6 +31,14 @@ function authHeader(): Record<string, string> {
   return { Authorization: `tma ${initData}` };
 }
 
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
@@ -42,7 +51,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => "");
-    throw new Error(`API ${path} failed: ${res.status} ${body}`);
+    let detail = body;
+    try {
+      detail = JSON.parse(body).detail ?? body;
+    } catch {
+      /* body wasn't JSON — use it as-is */
+    }
+    throw new ApiError(res.status, detail || `API ${path} failed: ${res.status}`);
   }
 
   return res.json() as Promise<T>;
@@ -90,6 +105,15 @@ export const api = {
     }),
   adminBroadcast: (text: string) =>
     request<{ ok: boolean; recipient_count: number }>("/api/admin/broadcast", {
+      method: "POST",
+      body: JSON.stringify({ text }),
+    }),
+  chatMessages: (afterId?: number) =>
+    request<ChatMessage[]>(
+      afterId !== undefined ? `/api/chat/messages?after_id=${afterId}` : "/api/chat/messages",
+    ),
+  chatSend: (text: string) =>
+    request<ChatMessage>("/api/chat/messages", {
       method: "POST",
       body: JSON.stringify({ text }),
     }),

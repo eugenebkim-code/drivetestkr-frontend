@@ -25,6 +25,7 @@ const router = createRouter({
     { path: "/redeem", name: "redeem", component: () => import("../views/RedeemView.vue") },
     { path: "/profile", name: "profile", component: () => import("../views/ProfileView.vue") },
     { path: "/about", name: "about", component: () => import("../views/AboutView.vue") },
+    { path: "/chat", name: "chat", component: () => import("../views/ChatView.vue") },
     { path: "/admin", name: "admin", component: () => import("../views/AdminView.vue") },
   ],
 });

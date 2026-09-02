@@ -82,6 +82,16 @@ export interface ExamFinishIn {
   answers: ExamAnswerIn[];
 }
 
+export interface ChatMessage {
+  id: number;
+  user_id: number;
+  username: string | null;
+  first_name: string | null;
+  text: string;
+  created_at: string;
+  is_admin: boolean;
+}
+
 export interface ExamQuestionResult {
   question_id: string;
   is_correct: boolean;

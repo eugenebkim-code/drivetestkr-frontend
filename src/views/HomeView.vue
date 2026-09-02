@@ -150,6 +150,17 @@ function contactDeveloper() {
             <span class="mode-row-chevron">›</span>
           </button>
 
+          <button type="button" class="mode-row" @click="router.push({ name: 'chat' })">
+            <span class="mode-icon" style="background: color-mix(in srgb, #22c55e 22%, transparent)">💬</span>
+            <span class="mode-row-text">
+              <span class="mode-row-title">Общий чат</span>
+              <span class="mode-row-subtitle"
+                >Задайте вопрос разработчику, пообщайтесь с другими или поделитесь опытом</span
+              >
+            </span>
+            <span class="mode-row-chevron">›</span>
+          </button>
+
           <button type="button" class="mode-row" @click="router.push({ name: 'about' })">
             <span class="mode-icon" style="background: color-mix(in srgb, #8b5cf6 22%, transparent)">ℹ️</span>
             <span class="mode-row-text">
