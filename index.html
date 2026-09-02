@@ -17,6 +17,49 @@
   </head>
   <body>
     <div id="app"></div>
+    <!--
+      Runs before any part of the app bundle (including its dependencies'
+      own module-level code) evaluates, so it catches errors that happen
+      too early for a handler registered inside main.ts to see — there's no
+      way to attach devtools to a user's real Telegram session, so a silent
+      failure here is otherwise undebuggable.
+    -->
+    <script>
+      (function () {
+        function showFatalError(message) {
+          var el = document.getElementById("app");
+          if (!el) return;
+          var esc = String(message).replace(/[<>&]/g, function (c) {
+            return { "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c];
+          });
+          el.innerHTML =
+            '<div style="padding:16px;background:#fff;color:#c00;font-family:monospace;font-size:13px;white-space:pre-wrap;word-break:break-word;">' +
+            "Ошибка запуска приложения:\n\n" +
+            esc +
+            "</div>";
+        }
+        window.addEventListener("error", function (e) {
+          showFatalError((e.message || "unknown error") + "\n" + (e.error && e.error.stack ? e.error.stack : ""));
+        });
+        window.addEventListener("unhandledrejection", function (e) {
+          showFatalError(String(e.reason));
+        });
+
+        // Telegram shows its own native placeholder over the page until
+        // ready() is called — if the app bundle below throws before its own
+        // (later) ready() call, that placeholder never lifts and whatever
+        // *did* render (including the error box above) stays hidden behind
+        // it forever. Call it immediately so at minimum something becomes
+        // visible; the app calls it again once mounted, which is harmless.
+        try {
+          if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.ready();
+          }
+        } catch (e) {
+          showFatalError("ready() failed: " + e);
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
