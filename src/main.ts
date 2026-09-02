@@ -22,11 +22,6 @@ document.addEventListener(
   { passive: false },
 );
 
-// A blank/black screen with no clue why is worse than an ugly error message —
-// this surfaces whatever actually broke instead of failing silently, since
-// there's no way to attach devtools to a user's real Telegram session.
-// (index.html has its own copy of this that runs even earlier — this one is
-// a second line of defense in case something re-registers/clears it.)
 function showFatalError(message: string) {
   const el = document.getElementById("app");
   if (!el) return;
@@ -40,17 +35,63 @@ function showFatalError(message: string) {
 window.addEventListener("error", (e) => showFatalError(e.message + "\n" + (e.error?.stack ?? "")));
 window.addEventListener("unhandledrejection", (e) => showFatalError(String(e.reason)));
 
-// TEMPORARY diagnostic: ?bare=1 mounts plain Vue with NO vue-tg/router import
-// at all (dynamic import, so vue-tg's own module code never even loads in
-// this mode) — isolates "does Vue itself mount here" from "does vue-tg (or
-// something it does on import/setup) break here".
-const bareMode = new URLSearchParams(location.search).get("bare") === "1";
+/* eslint-disable no-console */
+
+// TEMPORARY diagnostic ladder, selected via ?bare=N — each level adds one
+// more thing on top of the last, so whichever level first goes black tells
+// us exactly what broke it. All vue-tg imports are dynamic so a level that
+// doesn't need vue-tg never even loads its module code.
+const bareLevel = new URLSearchParams(location.search).get("bare");
+
+function mountText(text: string, bg = "#0f0") {
+  createApp({ render: () => h("div", { style: `padding:20px;background:${bg};color:#000` }, text) }).mount("#app");
+}
 
 async function start() {
-  if (bareMode) {
-    createApp({ render: () => h("div", { style: "padding:20px;background:#0f0;color:#000" }, "BARE VUE MOUNTED OK") }).mount(
-      "#app",
-    );
+  if (bareLevel === "1") {
+    // No vue-tg at all.
+    mountText("BARE 1: plain Vue, no vue-tg — OK");
+  } else if (bareLevel === "2") {
+    // Import vue-tg, call nothing.
+    await import("vue-tg/7.0");
+    mountText("BARE 2: vue-tg imported, nothing called — OK");
+  } else if (bareLevel === "3") {
+    // Call useMiniApp().ready() only.
+    const { useMiniApp } = await import("vue-tg/7.0");
+    mountText("BARE 3: about to call useMiniApp()...", "#ff0");
+    const miniApp = useMiniApp();
+    mountText("BARE 3: useMiniApp() returned, calling ready()...", "#ff0");
+    miniApp.ready();
+    mountText("BARE 3: useMiniApp().ready() called — OK");
+  } else if (bareLevel === "4") {
+    // Add useTheme() + reading themeParams (no expand, no writing to DOM).
+    const { useMiniApp, useTheme } = await import("vue-tg/7.0");
+    const miniApp = useMiniApp();
+    miniApp.ready();
+    mountText("BARE 4: calling useTheme()...", "#ff0");
+    const theme = useTheme();
+    mountText("BARE 4: useTheme() returned, reading themeParams...", "#ff0");
+    const params = theme.themeParams.value;
+    mountText("BARE 4: themeParams = " + JSON.stringify(params));
+  } else if (bareLevel === "5") {
+    // Add useViewport().expand() — the one call debug.html never made.
+    const { useMiniApp, useViewport } = await import("vue-tg/7.0");
+    const miniApp = useMiniApp();
+    miniApp.ready();
+    mountText("BARE 5: calling useViewport()...", "#ff0");
+    const viewport = useViewport();
+    mountText("BARE 5: useViewport() returned, calling expand()...", "#ff0");
+    viewport.expand();
+    mountText("BARE 5: expand() called — OK");
+  } else if (bareLevel === "6") {
+    // Full App.vue + router, but through this same instrumented path.
+    const [{ default: App }, { default: router }] = await Promise.all([import("./App.vue"), import("./router")]);
+    const app = createApp(App);
+    app.config.errorHandler = (err, _instance, info) => {
+      console.error("Vue error:", err, info);
+      showFatalError(`${err}\ninfo: ${info}`);
+    };
+    app.use(router).mount("#app");
   } else {
     const [{ default: App }, { default: router }] = await Promise.all([import("./App.vue"), import("./router")]);
     const app = createApp(App);
@@ -63,4 +104,4 @@ async function start() {
   (window as unknown as Record<string, unknown>).__appMounted = true;
 }
 
-start().catch((err) => showFatalError(String(err)));
+start().catch((err) => showFatalError(String(err) + "\n" + (err instanceof Error ? err.stack : "")));
