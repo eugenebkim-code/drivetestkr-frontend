@@ -68,6 +68,8 @@ export interface ExamStartOut {
   lock_reason: string | null;
   exam_attempt_id: number | null;
   questions: QuestionExam[];
+  started_at: string | null;
+  duration_seconds: number | null;
 }
 
 export interface ExamAnswerIn {

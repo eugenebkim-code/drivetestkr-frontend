@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { api } from "../api/client";
@@ -25,12 +25,56 @@ const finishing = ref(false);
 const current = computed<QuestionExam | null>(() => questions.value[idx.value] ?? null);
 const total = computed(() => questions.value.length);
 
+// Deadline is a fixed wall-clock timestamp (server start time + fixed
+// duration), not a locally-decremented counter — so it stays correct even
+// if the Telegram app was backgrounded and resumed well past the limit.
+const deadline = ref<number | null>(null);
+const remainingSeconds = ref<number | null>(null);
+let timerHandle: ReturnType<typeof setInterval> | null = null;
+
+const timeIsUp = computed(() => remainingSeconds.value !== null && remainingSeconds.value <= 0);
+const timeLow = computed(() => remainingSeconds.value !== null && remainingSeconds.value <= 300);
+
+const formattedTime = computed(() => {
+  if (remainingSeconds.value === null) return "";
+  const m = Math.floor(remainingSeconds.value / 60);
+  const s = remainingSeconds.value % 60;
+  return `${m}:${String(s).padStart(2, "0")}`;
+});
+
+function tick() {
+  if (deadline.value === null) return;
+  const remaining = Math.max(0, Math.round((deadline.value - Date.now()) / 1000));
+  remainingSeconds.value = remaining;
+  if (remaining <= 0 && !finishing.value && examAttemptId.value !== null) {
+    stopTimer();
+    // Korean-exam rule: time's up stops the exam and grades answers exactly
+    // as they stand — unanswered questions are simply missing from
+    // `answers`, and exam_finish already scores a missing answer as wrong.
+    finish();
+  }
+}
+
+function stopTimer() {
+  if (timerHandle !== null) {
+    clearInterval(timerHandle);
+    timerHandle = null;
+  }
+}
+
+onBeforeUnmount(stopTimer);
+
 onMounted(async () => {
   try {
     const res = await api.examStart();
     locked.value = res.locked;
     questions.value = res.questions;
     examAttemptId.value = res.exam_attempt_id;
+    if (res.started_at && res.duration_seconds) {
+      deadline.value = new Date(res.started_at).getTime() + res.duration_seconds * 1000;
+      tick();
+      timerHandle = setInterval(tick, 1000);
+    }
   } finally {
     loading.value = false;
   }
@@ -62,6 +106,7 @@ function selectLetter(letter: string) {
 
 async function finish() {
   if (examAttemptId.value === null) return;
+  stopTimer();
   finishing.value = true;
   try {
     const result = await api.examFinish({
@@ -95,6 +140,9 @@ async function finish() {
     <template v-else-if="current">
       <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-3)">
         <ProgressBar :current="idx + 1" :total="total" style="flex: 1" />
+        <span v-if="remainingSeconds !== null" class="exam-timer" :class="{ 'exam-timer-warning': timeLow }">
+          ⏱ {{ formattedTime }}
+        </span>
         <LanguageToggle />
       </div>
       <QuestionCard
@@ -102,7 +150,7 @@ async function finish() {
         :selected="selected"
         :revealed="false"
         :correct-letters="null"
-        :disabled="false"
+        :disabled="timeIsUp"
         @select="selectLetter"
       />
     </template>
