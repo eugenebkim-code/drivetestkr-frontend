@@ -9,8 +9,16 @@ import type { ChatMessage } from "../types";
 useBackToHome();
 
 const POLL_INTERVAL_MS = 3000;
+// Matches the backend's RECENT_LIMIT — a page shorter than this means
+// there's nothing older left to load.
+const PAGE_SIZE = 50;
+// How close to the top of the scroll container triggers loading an older
+// page, in pixels.
+const LOAD_MORE_THRESHOLD_PX = 60;
 
 const loading = ref(true);
+const loadingOlder = ref(false);
+const hasMore = ref(true);
 const messages = ref<ChatMessage[]>([]);
 const draft = ref("");
 const sending = ref(false);
@@ -19,6 +27,7 @@ const listEl = ref<HTMLElement | null>(null);
 
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 let lastId = 0;
+let firstId: number | null = null;
 
 const myUserId = computed(() => session.state.me?.user_id ?? null);
 
@@ -38,7 +47,7 @@ async function scrollToBottom() {
 
 async function poll() {
   try {
-    const fresh = await api.chatMessages(lastId);
+    const fresh = await api.chatMessages({ afterId: lastId });
     if (fresh.length) {
       messages.value.push(...fresh);
       lastId = fresh[fresh.length - 1].id;
@@ -47,6 +56,36 @@ async function poll() {
   } catch {
     // Silent — a single missed poll tick isn't worth surfacing to the user,
     // the next tick just retries.
+  }
+}
+
+async function loadOlder() {
+  if (loadingOlder.value || !hasMore.value || firstId === null) return;
+  loadingOlder.value = true;
+  const el = listEl.value;
+  const prevScrollHeight = el?.scrollHeight ?? 0;
+  const prevScrollTop = el?.scrollTop ?? 0;
+  try {
+    const older = await api.chatMessages({ beforeId: firstId });
+    if (older.length) {
+      messages.value.unshift(...older);
+      firstId = older[0].id;
+    }
+    if (older.length < PAGE_SIZE) hasMore.value = false;
+    // Prepending content above the viewport shifts everything down — restore
+    // the same visual scroll position instead of jumping to the very top.
+    await nextTick();
+    if (el) el.scrollTop = el.scrollHeight - prevScrollHeight + prevScrollTop;
+  } catch {
+    // Leave hasMore as-is so scrolling up again just retries.
+  } finally {
+    loadingOlder.value = false;
+  }
+}
+
+function onListScroll() {
+  if (listEl.value && listEl.value.scrollTop < LOAD_MORE_THRESHOLD_PX) {
+    loadOlder();
   }
 }
 
@@ -74,8 +113,13 @@ async function send() {
 onMounted(async () => {
   if (!session.state.me) await session.refresh();
   try {
-    messages.value = await api.chatMessages();
-    if (messages.value.length) lastId = messages.value[messages.value.length - 1].id;
+    const initial = await api.chatMessages();
+    messages.value = initial;
+    if (initial.length) {
+      lastId = initial[initial.length - 1].id;
+      firstId = initial[0].id;
+    }
+    if (initial.length < PAGE_SIZE) hasMore.value = false;
   } finally {
     loading.value = false;
   }
@@ -99,10 +143,12 @@ onBeforeUnmount(() => {
 
     <div v-if="loading" class="empty-hint">Загрузка…</div>
 
-    <div v-else ref="listEl" class="chat-list">
+    <div v-else ref="listEl" class="chat-list" @scroll="onListScroll">
       <p v-if="messages.length === 0" class="empty-hint" style="text-align: center">
         Сообщений пока нет — напишите первым
       </p>
+      <p v-else-if="loadingOlder" class="chat-history-hint">Загрузка истории…</p>
+      <p v-else-if="!hasMore" class="chat-history-hint">Начало истории</p>
       <div
         v-for="m in messages"
         :key="m.id"

@@ -108,10 +108,13 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ text }),
     }),
-  chatMessages: (afterId?: number) =>
-    request<ChatMessage[]>(
-      afterId !== undefined ? `/api/chat/messages?after_id=${afterId}` : "/api/chat/messages",
-    ),
+  chatMessages: (opts: { afterId?: number; beforeId?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (opts.afterId !== undefined) params.set("after_id", String(opts.afterId));
+    if (opts.beforeId !== undefined) params.set("before_id", String(opts.beforeId));
+    const qs = params.toString();
+    return request<ChatMessage[]>(`/api/chat/messages${qs ? `?${qs}` : ""}`);
+  },
   chatSend: (text: string) =>
     request<ChatMessage>("/api/chat/messages", {
       method: "POST",

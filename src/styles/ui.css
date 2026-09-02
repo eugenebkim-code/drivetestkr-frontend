@@ -660,6 +660,13 @@
   padding-right: 2px;
 }
 
+.chat-history-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--tg-hint-color);
+  padding: var(--space-1) 0;
+}
+
 .chat-bubble-row {
   display: flex;
 }
