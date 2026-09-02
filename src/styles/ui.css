@@ -640,6 +640,31 @@
   margin-top: 4px;
 }
 
+.about-list {
+  margin: 0;
+  padding-left: 1.1em;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.about-list li {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--tg-hint-color);
+}
+
+.about-access-p {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--tg-hint-color);
+  margin-bottom: var(--space-3);
+}
+
+.about-access-p strong {
+  color: var(--tg-text-color);
+}
+
 .exam-timer {
   flex-shrink: 0;
   padding: 6px 12px;

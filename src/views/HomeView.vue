@@ -150,6 +150,14 @@ function contactDeveloper() {
             <span class="mode-row-chevron">›</span>
           </button>
 
+          <button type="button" class="mode-row" @click="router.push({ name: 'about' })">
+            <span class="mode-icon" style="background: color-mix(in srgb, #8b5cf6 22%, transparent)">ℹ️</span>
+            <span class="mode-row-text">
+              <span class="mode-row-title">О приложении «Права в Корее»</span>
+            </span>
+            <span class="mode-row-chevron">›</span>
+          </button>
+
           <button v-if="me.is_admin" type="button" class="mode-row" @click="router.push({ name: 'admin' })">
             <span class="mode-icon" style="background: color-mix(in srgb, #64748b 22%, transparent)">🛠</span>
             <span class="mode-row-text">
