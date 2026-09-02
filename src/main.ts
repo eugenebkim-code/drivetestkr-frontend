@@ -1,7 +1,5 @@
-import { createApp } from "vue";
+import { createApp, h } from "vue";
 
-import App from "./App.vue";
-import router from "./router";
 import "./styles/base.css";
 import "./styles/ui.css";
 
@@ -42,14 +40,27 @@ function showFatalError(message: string) {
 window.addEventListener("error", (e) => showFatalError(e.message + "\n" + (e.error?.stack ?? "")));
 window.addEventListener("unhandledrejection", (e) => showFatalError(String(e.reason)));
 
-try {
-  const app = createApp(App);
-  app.config.errorHandler = (err, _instance, info) => {
-    console.error("Vue error:", err, info);
-    showFatalError(`${err}\ninfo: ${info}`);
-  };
-  app.use(router).mount("#app");
+// TEMPORARY diagnostic: ?bare=1 mounts plain Vue with NO vue-tg/router import
+// at all (dynamic import, so vue-tg's own module code never even loads in
+// this mode) — isolates "does Vue itself mount here" from "does vue-tg (or
+// something it does on import/setup) break here".
+const bareMode = new URLSearchParams(location.search).get("bare") === "1";
+
+async function start() {
+  if (bareMode) {
+    createApp({ render: () => h("div", { style: "padding:20px;background:#0f0;color:#000" }, "BARE VUE MOUNTED OK") }).mount(
+      "#app",
+    );
+  } else {
+    const [{ default: App }, { default: router }] = await Promise.all([import("./App.vue"), import("./router")]);
+    const app = createApp(App);
+    app.config.errorHandler = (err, _instance, info) => {
+      console.error("Vue error:", err, info);
+      showFatalError(`${err}\ninfo: ${info}`);
+    };
+    app.use(router).mount("#app");
+  }
   (window as unknown as Record<string, unknown>).__appMounted = true;
-} catch (err) {
-  showFatalError(String(err));
 }
+
+start().catch((err) => showFatalError(String(err)));
