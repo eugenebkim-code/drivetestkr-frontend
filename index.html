@@ -71,21 +71,6 @@
         } catch (e) {
           showFatalError("ready() failed: " + e);
         }
-
-        // Last-resort: if main.ts never even starts executing (module
-        // silently skipped/blocked) or starts but never finishes mounting,
-        // neither the error nor unhandledrejection listeners above have
-        // anything to catch — there's simply nothing telling us why. This
-        // makes that specific silent-failure mode visible too.
-        setTimeout(function () {
-          if (!window.__appMounted) {
-            showFatalError(
-              "Таймаут: приложение не смонтировалось за 5 секунд.\n" +
-                "main.ts started: " + !!window.__mainTsStarted + "\n" +
-                "user agent: " + navigator.userAgent,
-            );
-          }
-        }, 5000);
       })();
     </script>
     <script type="module" src="/src/main.ts"></script>

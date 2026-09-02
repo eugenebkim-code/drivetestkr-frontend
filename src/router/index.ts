@@ -1,11 +1,17 @@
-import { createRouter, createWebHashHistory } from "vue-router";
+import { createRouter, createWebHistory } from "vue-router";
 
 import HomeView from "../views/HomeView.vue";
 
-// Hash history — same choice the prior vue-tg Mini App made, avoids
-// Telegram's in-app browser back-navigation quirks with real history entries.
+// Real (path-based) history, NOT hash history — Telegram launches Mini Apps
+// with its own launch params in the URL hash (#tgWebAppData=...), and hash
+// history reads/writes that same location.hash for routing, so the two fight
+// over it: the router tries to match Telegram's data blob as a route path,
+// fails, and RouterView renders nothing (a real-Telegram-only black screen
+// that never reproduces in a plain browser, since nothing appends that hash
+// there). Path-based history only looks at location.pathname, leaving
+// Telegram's hash alone.
 const router = createRouter({
-  history: createWebHashHistory(),
+  history: createWebHistory(),
   routes: [
     { path: "/", name: "home", component: HomeView },
     { path: "/learn", name: "learn", component: () => import("../views/LearnView.vue") },
