@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useMainButton } from "vue-tg/7.0";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { api } from "../api/client";
 import LanguageToggle from "../components/LanguageToggle.vue";
@@ -39,7 +38,6 @@ const hasAnchors = computed(
 );
 const qNumber = computed(() => current.value?.id.replace(/^Q/, "") ?? "");
 
-const mainButton = useMainButton();
 useSwipeNav(questionAreaRef, { onSwipeLeft: () => goNext(), onSwipeRight: () => goPrev() });
 
 async function load() {
@@ -59,22 +57,13 @@ async function load() {
 
 onMounted(async () => {
   await load();
-  mainButton.setParams({ text: "Следующий вопрос →" });
-  mainButton.onClick(goNext);
-});
-
-onUnmounted(() => {
-  mainButton.hide();
 });
 
 watch(current, (q) => {
   selected.value = [];
   revealed.value = false;
   if (q) {
-    mainButton.show();
     api.learnProgress(q.id).catch(() => {});
-  } else {
-    mainButton.hide();
   }
 });
 

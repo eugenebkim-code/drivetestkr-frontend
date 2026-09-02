@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, watch } from "vue";
 
 import { imageUrl } from "../api/client";
 import { language } from "../store/language";
 import type { QuestionBase } from "../types";
+import ImageZoom from "./ImageZoom.vue";
 
 const props = defineProps<{
   question: QuestionBase;
@@ -14,6 +15,14 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{ (e: "select", letter: string): void }>();
+
+const zoomOpen = ref(false);
+watch(
+  () => props.question.id,
+  () => {
+    zoomOpen.value = false;
+  },
+);
 
 const letters = computed(() => {
   const ls = ["A", "B", "C", "D"];
@@ -46,12 +55,11 @@ function optionClass(letter: string) {
     <p class="question-text">{{ questionText }}</p>
   </div>
 
-  <img
-    v-if="question.image_url"
-    :src="imageUrl(question.image_url)!"
-    alt=""
-    style="width: 100%; border-radius: var(--radius-md); display: block"
-  />
+  <div v-if="question.image_url" class="question-image-wrap" @click="zoomOpen = true">
+    <img :src="imageUrl(question.image_url)!" alt="" class="question-image" />
+    <span class="question-image-zoom-hint">🔍</span>
+  </div>
+  <ImageZoom :open="zoomOpen" :src="imageUrl(question.image_url) || ''" @close="zoomOpen = false" />
 
   <div class="options">
     <button
@@ -69,3 +77,31 @@ function optionClass(letter: string) {
     </button>
   </div>
 </template>
+
+<style scoped>
+.question-image-wrap {
+  position: relative;
+  cursor: zoom-in;
+}
+
+.question-image {
+  width: 100%;
+  border-radius: var(--radius-md);
+  display: block;
+}
+
+.question-image-zoom-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>

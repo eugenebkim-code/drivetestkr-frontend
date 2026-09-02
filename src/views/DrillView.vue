@@ -1,6 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { useMainButton } from "vue-tg/7.0";
+import { computed, onMounted, ref, watch } from "vue";
 
 import { api } from "../api/client";
 import LanguageToggle from "../components/LanguageToggle.vue";
@@ -37,7 +36,6 @@ const hasAnchors = computed(
 );
 const qNumber = computed(() => current.value?.id.replace(/^Q/, "") ?? "");
 
-const mainButton = useMainButton();
 useSwipeNav(questionAreaRef, { onSwipeLeft: () => goNext(), onSwipeRight: () => goPrev() });
 
 onMounted(async () => {
@@ -50,19 +48,11 @@ onMounted(async () => {
   } finally {
     loading.value = false;
   }
-  mainButton.setParams({ text: "Следующий вопрос →" });
-  mainButton.onClick(goNext);
 });
 
-onUnmounted(() => {
-  mainButton.hide();
-});
-
-watch(current, (q) => {
+watch(current, () => {
   selected.value = [];
   revealed.value = false;
-  if (q) mainButton.show();
-  else mainButton.hide();
 });
 
 function selectLetter(letter: string) {

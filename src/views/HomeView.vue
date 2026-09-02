@@ -192,5 +192,24 @@ function contactDeveloper() {
     </template>
 
     <p v-else-if="session.state.error" style="color: var(--wrong-color)">{{ session.state.error }}</p>
+
+    <p class="home-footer">
+      Сделано командой <a href="https://mirae.team" target="_blank" rel="noopener noreferrer">mirae.team</a>. Корея, 2026.
+    </p>
   </div>
 </template>
+
+<style scoped>
+.home-footer {
+  margin-top: 8px;
+  padding-bottom: 8px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--tg-hint-color);
+}
+
+.home-footer a {
+  color: var(--tg-hint-color);
+  text-decoration: underline;
+}
+</style>
