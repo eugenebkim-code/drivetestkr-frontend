@@ -203,6 +203,43 @@ async function start() {
       showFatalError(`${err}\ninfo: ${info}`);
     };
     app.use(router).mount("#app");
+  } else if (bareLevel === "11") {
+    // Same component/composable/onMounted/watchEffect setup as level 10
+    // (which went black), but with NO router at all — isolates "component
+    // setup calling these composables + onMounted + watchEffect" from
+    // "app.use(router) itself" as the thing that breaks in real Telegram.
+    const { useMiniApp, useTheme, useViewport } = await import("vue-tg/7.0");
+    const { defineComponent } = await import("vue");
+    const TestApp = defineComponent({
+      setup() {
+        const miniApp = useMiniApp();
+        const theme = useTheme();
+        const viewport = useViewport();
+        onMounted(() => {
+          miniApp.ready();
+          viewport.expand();
+        });
+        watchEffect(() => {
+          const params = theme.themeParams.value;
+          const root = document.documentElement;
+          root.style.setProperty("--tg-bg-color", params.bg_color ?? "#ffffff");
+          root.style.setProperty("--tg-text-color", params.text_color ?? "#111111");
+          root.style.setProperty("--tg-hint-color", params.hint_color ?? "#999999");
+          root.style.setProperty("--tg-link-color", params.link_color ?? "#2481cc");
+          root.style.setProperty("--tg-button-color", params.button_color ?? "#2481cc");
+          root.style.setProperty("--tg-button-text-color", params.button_text_color ?? "#ffffff");
+          root.style.setProperty("--tg-secondary-bg-color", params.secondary_bg_color ?? "#f0f0f0");
+          root.dataset.colorScheme = theme.colorScheme.value;
+        });
+        return () => h("div", { style: "padding:20px" }, "BARE 11: same as 10, NO router — OK");
+      },
+    });
+    const app = createApp(TestApp);
+    app.config.errorHandler = (err, _instance, info) => {
+      console.error("Vue error:", err, info);
+      showFatalError(`${err}\ninfo: ${info}`);
+    };
+    app.mount("#app");
   } else {
     const [{ default: App }, { default: router }] = await Promise.all([import("./App.vue"), import("./router")]);
     const app = createApp(App);
