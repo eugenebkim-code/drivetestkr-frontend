@@ -117,7 +117,7 @@ onMounted(load);
       </section>
 
       <section>
-        <p class="section-label">Интенсив: точность по неделям</p>
+        <p class="section-label">Интенсив: точность ваших ответов на вопросы, по неделям</p>
         <div class="card glass">
           <DrillTrendChart v-if="profile.drill_weekly_accuracy.length" :weeks="profile.drill_weekly_accuracy" />
           <p v-else class="empty-hint">Пройдите несколько вопросов в «Интенсиве», чтобы увидеть статистику</p>

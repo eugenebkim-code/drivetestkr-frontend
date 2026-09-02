@@ -72,11 +72,21 @@ const selected = computed(() => bars.value[selectedIndex.value] ?? null);
         <rect
           v-if="bar.hasData"
           :x="bar.x"
+          :y="0"
+          :width="bar.width"
+          :height="CHART_H"
+          rx="1.5"
+          fill="var(--tg-hint-color)"
+          opacity="0.12"
+        />
+        <rect
+          v-if="bar.hasData"
+          :x="bar.x"
           :y="bar.y"
           :width="bar.width"
           :height="bar.height"
           rx="1.5"
-          :fill="i === selectedIndex ? 'var(--tg-button-color)' : 'var(--tg-link-color)'"
+          fill="var(--wrong-color)"
           :opacity="i === selectedIndex ? 1 : 0.55"
           style="cursor: pointer"
           @click="selectedIndex = i"
