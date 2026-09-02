@@ -7,16 +7,6 @@
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
     />
     <title>Экзамен на права в Корее</title>
-    <!-- TEMPORARY diagnostic: forces a visible color as early as possible,
-         before any of our own CSS/JS runs, to test whether the page itself
-         is even reaching the screen at all. Remove once the black-screen
-         issue is found. -->
-    <style>
-      html,
-      body {
-        background: red !important;
-      }
-    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -48,9 +38,22 @@
             esc +
             "</div>";
         }
-        window.addEventListener("error", function (e) {
-          showFatalError((e.message || "unknown error") + "\n" + (e.error && e.error.stack ? e.error.stack : ""));
-        });
+        window.__showFatalError = showFatalError;
+
+        // capture:true so this also catches resource load failures (a
+        // <script> tag that 404s or is blocked fires 'error' only on the
+        // capture phase — it never bubbles to a plain window listener).
+        window.addEventListener(
+          "error",
+          function (e) {
+            if (e.target && e.target.tagName === "SCRIPT") {
+              showFatalError("Script failed to load: " + (e.target.src || "(inline)"));
+              return;
+            }
+            showFatalError((e.message || "unknown error") + "\n" + (e.error && e.error.stack ? e.error.stack : ""));
+          },
+          true,
+        );
         window.addEventListener("unhandledrejection", function (e) {
           showFatalError(String(e.reason));
         });
@@ -68,6 +71,21 @@
         } catch (e) {
           showFatalError("ready() failed: " + e);
         }
+
+        // Last-resort: if main.ts never even starts executing (module
+        // silently skipped/blocked) or starts but never finishes mounting,
+        // neither the error nor unhandledrejection listeners above have
+        // anything to catch — there's simply nothing telling us why. This
+        // makes that specific silent-failure mode visible too.
+        setTimeout(function () {
+          if (!window.__appMounted) {
+            showFatalError(
+              "Таймаут: приложение не смонтировалось за 5 секунд.\n" +
+                "main.ts started: " + !!window.__mainTsStarted + "\n" +
+                "user agent: " + navigator.userAgent,
+            );
+          }
+        }, 5000);
       })();
     </script>
     <script type="module" src="/src/main.ts"></script>
