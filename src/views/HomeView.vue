@@ -105,6 +105,16 @@ function contactDeveloper() {
         <RouterLink v-if="!me.full_access" :to="{ name: 'redeem' }" class="status-cta">Код</RouterLink>
       </div>
 
+      <button
+        v-if="me.full_access_reason === 'new_user_trial'"
+        type="button"
+        class="btn btn-secondary"
+        style="width: 100%"
+        @click="router.push({ name: 'redeem' })"
+      >
+        Активировать код доступа
+      </button>
+
       <div class="promo-card">
         <p>
           Полноценный полный доступ можно приобрести у разработчика приложения
