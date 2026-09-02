@@ -135,6 +135,30 @@ async function start() {
       showFatalError(`${err}\ninfo: ${info}`);
     };
     app.use(router).mount("#app");
+  } else if (bareLevel === "9") {
+    // Reproduce App.vue's EXACT sequence step by step, outside any SFC, with
+    // a visible mountText after each step — pinpoints which single call
+    // inside App.vue is the one that kills the screen. Order matches App.vue
+    // precisely: all 3 composables created up front, then themeParams read,
+    // then colorScheme read (never isolated before), THEN ready()+expand()
+    // (App.vue defers these to onMounted, i.e. AFTER the theme reads, unlike
+    // levels 3-5 which always called ready() first).
+    const { useMiniApp, useTheme, useViewport } = await import("vue-tg/7.0");
+    mountText("BARE 9: step1 - creating all 3 composables...", "#ff0");
+    const miniApp = useMiniApp();
+    const theme = useTheme();
+    const viewport = useViewport();
+    mountText("BARE 9: step2 - composables created OK, reading themeParams...", "#ff0");
+    const params = theme.themeParams.value;
+    mountText("BARE 9: step3 - themeParams OK: " + JSON.stringify(params).slice(0, 150), "#ff0");
+    const scheme = theme.colorScheme.value;
+    mountText("BARE 9: step4 - colorScheme OK: " + String(scheme), "#ff0");
+    document.documentElement.dataset.colorScheme = scheme;
+    mountText("BARE 9: step5 - dataset.colorScheme set OK, calling ready()...", "#ff0");
+    miniApp.ready();
+    mountText("BARE 9: step6 - ready() OK, calling expand()...", "#ff0");
+    viewport.expand();
+    mountText("BARE 9: step7 - expand() OK — ALL STEPS PASSED");
   } else {
     const [{ default: App }, { default: router }] = await Promise.all([import("./App.vue"), import("./router")]);
     const app = createApp(App);
