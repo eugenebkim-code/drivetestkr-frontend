@@ -1,4 +1,4 @@
-import { createApp, h } from "vue";
+import { createApp, h, onMounted, watchEffect } from "vue";
 
 import "./styles/base.css";
 import "./styles/ui.css";
@@ -159,6 +159,50 @@ async function start() {
     mountText("BARE 9: step6 - ready() OK, calling expand()...", "#ff0");
     viewport.expand();
     mountText("BARE 9: step7 - expand() OK — ALL STEPS PASSED");
+  } else if (bareLevel === "10") {
+    // Level 9's exact logic (proven OK on real Telegram), but this time as a
+    // real Vue component — mounted via a real router, rendering RouterView —
+    // to isolate "the composable calls themselves" (level 9, passed) from
+    // "the same calls made inside a component that gets mounted through the
+    // router" (levels 6/7, both went black). Also adds the 7 setProperty
+    // calls App.vue makes that level 9 never did.
+    const { useMiniApp, useTheme, useViewport } = await import("vue-tg/7.0");
+    const { defineComponent } = await import("vue");
+    const { createRouter, createWebHashHistory, RouterView } = await import("vue-router");
+    const TestApp = defineComponent({
+      setup() {
+        const miniApp = useMiniApp();
+        const theme = useTheme();
+        const viewport = useViewport();
+        onMounted(() => {
+          miniApp.ready();
+          viewport.expand();
+        });
+        watchEffect(() => {
+          const params = theme.themeParams.value;
+          const root = document.documentElement;
+          root.style.setProperty("--tg-bg-color", params.bg_color ?? "#ffffff");
+          root.style.setProperty("--tg-text-color", params.text_color ?? "#111111");
+          root.style.setProperty("--tg-hint-color", params.hint_color ?? "#999999");
+          root.style.setProperty("--tg-link-color", params.link_color ?? "#2481cc");
+          root.style.setProperty("--tg-button-color", params.button_color ?? "#2481cc");
+          root.style.setProperty("--tg-button-text-color", params.button_text_color ?? "#ffffff");
+          root.style.setProperty("--tg-secondary-bg-color", params.secondary_bg_color ?? "#f0f0f0");
+          root.dataset.colorScheme = theme.colorScheme.value;
+        });
+        return () => h(RouterView);
+      },
+    });
+    const router = createRouter({
+      history: createWebHashHistory(),
+      routes: [{ path: "/", component: { render: () => h("div", { style: "padding:20px" }, "BARE 10: inline component + router, RouterView — OK") } }],
+    });
+    const app = createApp(TestApp);
+    app.config.errorHandler = (err, _instance, info) => {
+      console.error("Vue error:", err, info);
+      showFatalError(`${err}\ninfo: ${info}`);
+    };
+    app.use(router).mount("#app");
   } else {
     const [{ default: App }, { default: router }] = await Promise.all([import("./App.vue"), import("./router")]);
     const app = createApp(App);
