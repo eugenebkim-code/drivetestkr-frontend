@@ -9,6 +9,7 @@
   <body style="background: #fff; color: #000; font-family: sans-serif; padding: 20px;">
     <h1>DEBUG OK</h1>
     <div id="info" style="white-space: pre-wrap; font-family: monospace; font-size: 12px;"></div>
+    <div id="module-test" style="margin-top: 12px; font-weight: bold;">MODULE SCRIPT: did not run</div>
     <script>
       try {
         var tg = window.Telegram && window.Telegram.WebApp;
@@ -19,12 +20,17 @@
           platform: tg ? tg.platform : null,
           initDataLength: tg ? (tg.initData || "").length : null,
           colorScheme: tg ? tg.colorScheme : null,
+          userAgent: navigator.userAgent,
         };
         document.getElementById("info").textContent = JSON.stringify(info, null, 2);
         if (tg) tg.ready();
       } catch (e) {
         document.getElementById("info").textContent = "ERROR: " + e.message;
       }
+    </script>
+    <script type="module">
+      document.getElementById("module-test").textContent = "MODULE SCRIPT: RAN OK";
+      document.getElementById("module-test").style.color = "green";
     </script>
   </body>
 </html>
