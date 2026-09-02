@@ -1,0 +1,30 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Debug</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body style="background: #fff; color: #000; font-family: sans-serif; padding: 20px;">
+    <h1>DEBUG OK</h1>
+    <div id="info" style="white-space: pre-wrap; font-family: monospace; font-size: 12px;"></div>
+    <script>
+      try {
+        var tg = window.Telegram && window.Telegram.WebApp;
+        var info = {
+          hasTelegram: !!window.Telegram,
+          hasWebApp: !!tg,
+          version: tg ? tg.version : null,
+          platform: tg ? tg.platform : null,
+          initDataLength: tg ? (tg.initData || "").length : null,
+          colorScheme: tg ? tg.colorScheme : null,
+        };
+        document.getElementById("info").textContent = JSON.stringify(info, null, 2);
+        if (tg) tg.ready();
+      } catch (e) {
+        document.getElementById("info").textContent = "ERROR: " + e.message;
+      }
+    </script>
+  </body>
+</html>
