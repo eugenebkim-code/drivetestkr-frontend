@@ -92,6 +92,49 @@ async function start() {
       showFatalError(`${err}\ninfo: ${info}`);
     };
     app.use(router).mount("#app");
+  } else if (bareLevel === "7") {
+    // Real App.vue (all 3 composables + the theme watchEffect) + a real
+    // vue-router, but routed to a placeholder with NO HomeView, NO session
+    // store, NO fetch to the backend at all — isolates "does App.vue's own
+    // combination + router infra survive" from "does HomeView/the API call".
+    const [{ default: App }, { createRouter, createWebHashHistory }] = await Promise.all([
+      import("./App.vue"),
+      import("vue-router"),
+    ]);
+    const router = createRouter({
+      history: createWebHashHistory(),
+      routes: [{ path: "/", component: { render: () => h("div", { style: "padding:20px" }, "BARE 7: App.vue + router, placeholder route — OK") } }],
+    });
+    const app = createApp(App);
+    app.config.errorHandler = (err, _instance, info) => {
+      console.error("Vue error:", err, info);
+      showFatalError(`${err}\ninfo: ${info}`);
+    };
+    app.use(router).mount("#app");
+  } else if (bareLevel === "8") {
+    // Real everything (App.vue + real router + real HomeView), but with
+    // api.client's fetch call wrapped so a hang/throw there can't silently
+    // blank the screen — logs progress into #app instead of calling
+    // session.refresh()'s own (HomeView-internal) error path.
+    const [{ default: App }, { default: router }, { api }] = await Promise.all([
+      import("./App.vue"),
+      import("./router"),
+      import("./api/client"),
+    ]);
+    mountText("BARE 8: calling api.me()...", "#ff0");
+    try {
+      const me = await api.me();
+      mountText("BARE 8: api.me() OK: " + JSON.stringify(me).slice(0, 200));
+    } catch (e) {
+      mountText("BARE 8: api.me() THREW: " + String(e), "#f88");
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+    const app = createApp(App);
+    app.config.errorHandler = (err, _instance, info) => {
+      console.error("Vue error:", err, info);
+      showFatalError(`${err}\ninfo: ${info}`);
+    };
+    app.use(router).mount("#app");
   } else {
     const [{ default: App }, { default: router }] = await Promise.all([import("./App.vue"), import("./router")]);
     const app = createApp(App);
