@@ -46,8 +46,16 @@
         window.addEventListener(
           "error",
           function (e) {
-            if (e.target && e.target.tagName === "SCRIPT") {
-              showFatalError("Script failed to load: " + (e.target.src || "(inline)"));
+            // capture:true means this also sees resource-load failures for
+            // *any* element (img/link/audio/...), not just real script/app
+            // errors — e.target is that element, not window, and carries no
+            // message/stack. Only a <script> failing to load is fatal here;
+            // any other broken resource (e.g. a chat photo that's since been
+            // deleted) should just fail visibly in place, not crash the app.
+            if (e.target && e.target !== window && e.target.nodeType === 1) {
+              if (e.target.tagName === "SCRIPT") {
+                showFatalError("Script failed to load: " + (e.target.src || "(inline)"));
+              }
               return;
             }
             showFatalError((e.message || "unknown error") + "\n" + (e.error && e.error.stack ? e.error.stack : ""));
