@@ -10,9 +10,24 @@ const distDir = path.join(__dirname, "dist");
 
 app.get("/health", (_req, res) => res.send("ok"));
 
-app.use(express.static(distDir));
+// Hashed filenames under assets/ are immutable and safe to cache forever;
+// index.html is not (it's what points at the current hashes) — force
+// revalidation on every load so a stale cached shell can't reference JS
+// chunks a later deploy has already removed (causes a hard client crash
+// mid-navigation: "Cannot read properties of null (reading 'insertBefore')").
+app.use(
+  express.static(distDir, {
+    index: false,
+    setHeaders: (res, filePath) => {
+      if (path.basename(filePath) === "index.html") {
+        res.setHeader("Cache-Control", "no-store");
+      }
+    },
+  }),
+);
 
 app.get("*", (_req, res) => {
+  res.set("Cache-Control", "no-store");
   res.sendFile(path.join(distDir, "index.html"));
 });
 
