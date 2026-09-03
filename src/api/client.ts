@@ -4,6 +4,7 @@ import type {
   AdminStatsOut,
   AdminUserOut,
   ChatMessage,
+  ChatUploadOut,
   CheckinOut,
   DrillSessionOut,
   ExamFinishIn,
@@ -47,6 +48,32 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...authHeader(),
       ...(options.headers as Record<string, string> | undefined),
     },
+  });
+
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    let detail = body;
+    try {
+      detail = JSON.parse(body).detail ?? body;
+    } catch {
+      /* body wasn't JSON — use it as-is */
+    }
+    throw new ApiError(res.status, detail || `API ${path} failed: ${res.status}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+// Separate from request(): a multipart body needs the browser to set its own
+// Content-Type (with the boundary), so this can't go through request()'s
+// fixed "application/json" header.
+async function upload<T>(path: string, file: File): Promise<T> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: authHeader(),
+    body: form,
   });
 
   if (!res.ok) {
@@ -115,9 +142,21 @@ export const api = {
     const qs = params.toString();
     return request<ChatMessage[]>(`/api/chat/messages${qs ? `?${qs}` : ""}`);
   },
-  chatSend: (text: string) =>
+  chatSend: (text: string, imageUrl?: string | null) =>
     request<ChatMessage>("/api/chat/messages", {
       method: "POST",
+      body: JSON.stringify({ text, image_url: imageUrl ?? null }),
+    }),
+  chatEdit: (messageId: number, text: string) =>
+    request<ChatMessage>(`/api/chat/messages/${messageId}`, {
+      method: "PATCH",
       body: JSON.stringify({ text }),
     }),
+  chatUploadImage: (file: File) => upload<ChatUploadOut>("/api/chat/upload", file),
+  chatPinned: () => request<ChatMessage[]>("/api/chat/pinned"),
+  chatPin: (messageId: number) =>
+    request<ChatMessage>(`/api/chat/messages/${messageId}/pin`, { method: "POST" }),
+  chatUnpin: (messageId: number) =>
+    request<ChatMessage>(`/api/chat/messages/${messageId}/unpin`, { method: "POST" }),
+  chatMarkRead: () => request<{ ok: boolean }>("/api/chat/read", { method: "POST" }),
 };

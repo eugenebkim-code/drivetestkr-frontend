@@ -161,7 +161,10 @@ function contactDeveloper() {
           </button>
 
           <button type="button" class="mode-row" @click="router.push({ name: 'chat' })">
-            <span class="mode-icon" style="background: color-mix(in srgb, #22c55e 22%, transparent)">💬</span>
+            <span class="mode-icon" style="background: color-mix(in srgb, #22c55e 22%, transparent); position: relative">
+              💬
+              <span v-if="me.chat_unread" class="chat-unread-dot">!</span>
+            </span>
             <span class="mode-row-text">
               <span class="mode-row-title">Общий чат</span>
               <span class="mode-row-subtitle"
@@ -211,5 +214,21 @@ function contactDeveloper() {
 .home-footer a {
   color: var(--tg-hint-color);
   text-decoration: underline;
+}
+
+.chat-unread-dot {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--wrong-color, #ff3b30);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--tg-bg-color, #fff);
 }
 </style>

@@ -18,6 +18,7 @@ export interface MeOut {
   price_week: string;
   price_month: string;
   is_admin: boolean;
+  chat_unread: boolean;
 }
 
 export interface QuestionBase {
@@ -88,8 +89,11 @@ export interface ChatMessage {
   username: string | null;
   first_name: string | null;
   text: string;
+  image_url: string | null;
   created_at: string;
+  edited_at: string | null;
   is_admin: boolean;
+  is_pinned: boolean;
 }
 
 export interface ExamQuestionResult {
@@ -105,6 +109,10 @@ export interface ExamFinishOut {
   total_count: number;
   passed: boolean;
   results: ExamQuestionResult[];
+}
+
+export interface ChatUploadOut {
+  image_url: string;
 }
 
 export interface LicenseRedeemOut {

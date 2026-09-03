@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
 
-import { api, ApiError } from "../api/client";
+import { api, ApiError, imageUrl } from "../api/client";
+import ImageZoom from "../components/ImageZoom.vue";
 import { useBackToHome } from "../composables/useBackToHome";
 import { session } from "../store/session";
 import type { ChatMessage } from "../types";
@@ -24,12 +25,124 @@ const draft = ref("");
 const sending = ref(false);
 const sendError = ref<string | null>(null);
 const listEl = ref<HTMLElement | null>(null);
+const pinned = ref<ChatMessage[]>([]);
+const pinning = ref<number | null>(null);
+const pinError = ref<string | null>(null);
+const MAX_PINNED = 3;
+
+const fileInput = ref<HTMLInputElement | null>(null);
+const pendingImage = ref<{ previewUrl: string; uploadedUrl: string | null; uploading: boolean } | null>(
+  null,
+);
+const zoomSrc = ref<string | null>(null);
+
+const editingId = ref<number | null>(null);
+const editDraft = ref("");
+const editSaving = ref(false);
+const editError = ref<string | null>(null);
 
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 let lastId = 0;
 let firstId: number | null = null;
 
 const myUserId = computed(() => session.state.me?.user_id ?? null);
+const isAdmin = computed(() => session.state.me?.is_admin ?? false);
+
+async function markRead() {
+  try {
+    await api.chatMarkRead();
+    if (session.state.me) session.state.me.chat_unread = false;
+  } catch {
+    // Not worth surfacing — the unread dot just stays until the next successful call.
+  }
+}
+
+async function togglePin(m: ChatMessage) {
+  if (pinning.value !== null) return;
+  pinning.value = m.id;
+  pinError.value = null;
+  try {
+    if (m.is_pinned) {
+      await api.chatUnpin(m.id);
+      pinned.value = pinned.value.filter((p) => p.id !== m.id);
+    } else {
+      const result = await api.chatPin(m.id);
+      pinned.value = [...pinned.value, result];
+    }
+    messages.value = messages.value.map((msg) =>
+      msg.id === m.id ? { ...msg, is_pinned: !m.is_pinned } : msg,
+    );
+  } catch (e) {
+    pinError.value =
+      e instanceof ApiError && e.status === 400
+        ? `Можно закрепить не больше ${MAX_PINNED} сообщений`
+        : "Не удалось изменить закрепление";
+  } finally {
+    pinning.value = null;
+  }
+}
+
+function pickImage() {
+  fileInput.value?.click();
+}
+
+async function onFileSelected(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const file = input.files?.[0] ?? null;
+  input.value = ""; // allow picking the same file again later
+  if (!file) return;
+
+  clearPendingImage();
+  const previewUrl = URL.createObjectURL(file);
+  pendingImage.value = { previewUrl, uploadedUrl: null, uploading: true };
+  sendError.value = null;
+  try {
+    const result = await api.chatUploadImage(file);
+    if (pendingImage.value) {
+      pendingImage.value.uploadedUrl = result.image_url;
+      pendingImage.value.uploading = false;
+    }
+  } catch (err) {
+    sendError.value =
+      err instanceof ApiError ? err.message : "Не удалось загрузить фото";
+    clearPendingImage();
+  }
+}
+
+function clearPendingImage() {
+  if (pendingImage.value) URL.revokeObjectURL(pendingImage.value.previewUrl);
+  pendingImage.value = null;
+}
+
+function startEdit(m: ChatMessage) {
+  editingId.value = m.id;
+  editDraft.value = m.text;
+  editError.value = null;
+}
+
+function cancelEdit() {
+  editingId.value = null;
+  editError.value = null;
+}
+
+async function saveEdit(m: ChatMessage) {
+  const text = editDraft.value.trim();
+  if (!text && !m.image_url) {
+    editError.value = "Сообщение не может быть пустым";
+    return;
+  }
+  editSaving.value = true;
+  editError.value = null;
+  try {
+    const updated = await api.chatEdit(m.id, text);
+    messages.value = messages.value.map((msg) => (msg.id === m.id ? updated : msg));
+    editingId.value = null;
+  } catch {
+    editError.value = "Не удалось сохранить изменения";
+  } finally {
+    editSaving.value = false;
+  }
+}
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
@@ -52,6 +165,7 @@ async function poll() {
       messages.value.push(...fresh);
       lastId = fresh[fresh.length - 1].id;
       await scrollToBottom();
+      await markRead();
     }
   } catch {
     // Silent — a single missed poll tick isn't worth surfacing to the user,
@@ -89,14 +203,22 @@ function onListScroll() {
   }
 }
 
+const canSend = computed(() => {
+  if (sending.value) return false;
+  if (draft.value.trim()) return true;
+  return !!pendingImage.value?.uploadedUrl && !pendingImage.value.uploading;
+});
+
 async function send() {
+  if (!canSend.value) return;
   const text = draft.value.trim();
-  if (!text || sending.value) return;
+  const imageToSend = pendingImage.value?.uploadedUrl ?? null;
   sending.value = true;
   sendError.value = null;
   try {
-    const created = await api.chatSend(text);
+    const created = await api.chatSend(text, imageToSend);
     draft.value = "";
+    clearPendingImage();
     messages.value.push(created);
     lastId = created.id;
     await scrollToBottom();
@@ -124,11 +246,14 @@ onMounted(async () => {
     loading.value = false;
   }
   await scrollToBottom();
+  await markRead();
+  api.chatPinned().then((list) => (pinned.value = list)).catch(() => {});
   pollHandle = setInterval(poll, POLL_INTERVAL_MS);
 });
 
 onBeforeUnmount(() => {
   if (pollHandle !== null) clearInterval(pollHandle);
+  clearPendingImage();
 });
 </script>
 
@@ -140,6 +265,27 @@ onBeforeUnmount(() => {
         Задайте вопрос разработчику, пообщайтесь с другими или поделитесь опытом
       </p>
     </div>
+
+    <div v-if="pinned.length" class="chat-pinned-list">
+      <div v-for="p in pinned" :key="p.id" class="chat-pinned">
+        <span class="chat-pinned-icon">📌</span>
+        <span class="chat-pinned-body">
+          <span class="chat-pinned-name">{{ displayName(p) }}</span>
+          <span class="chat-pinned-text">{{ p.text }}</span>
+        </span>
+        <button
+          v-if="isAdmin"
+          type="button"
+          class="chat-pinned-unpin"
+          :disabled="pinning === p.id"
+          @click="togglePin(p)"
+        >
+          Открепить
+        </button>
+      </div>
+    </div>
+
+    <p v-if="pinError" class="chat-send-error">{{ pinError }}</p>
 
     <div v-if="loading" class="empty-hint">Загрузка…</div>
 
@@ -159,16 +305,80 @@ onBeforeUnmount(() => {
           <div class="chat-bubble-meta">
             <span class="chat-bubble-name">{{ displayName(m) }}</span>
             <span v-if="m.is_admin" class="badge badge-active">Разработчик</span>
+            <span v-if="m.is_pinned" class="chat-bubble-pin-mark">📌</span>
+            <button
+              v-if="m.user_id === myUserId && editingId !== m.id"
+              type="button"
+              class="chat-bubble-pin-btn"
+              @click="startEdit(m)"
+            >
+              Изменить
+            </button>
+            <button
+              v-if="isAdmin"
+              type="button"
+              class="chat-bubble-pin-btn"
+              :disabled="pinning === m.id || (!m.is_pinned && pinned.length >= MAX_PINNED)"
+              @click="togglePin(m)"
+            >
+              {{ m.is_pinned ? "Открепить" : "Закрепить" }}
+            </button>
           </div>
-          <p class="chat-bubble-text">{{ m.text }}</p>
-          <span class="chat-bubble-time">{{ formatTime(m.created_at) }}</span>
+
+          <img
+            v-if="m.image_url"
+            :src="imageUrl(m.image_url)!"
+            alt=""
+            class="chat-bubble-image"
+            @click="zoomSrc = imageUrl(m.image_url)"
+          />
+
+          <template v-if="editingId === m.id">
+            <textarea
+              v-model="editDraft"
+              class="chat-edit-textarea"
+              maxlength="500"
+              rows="2"
+              :disabled="editSaving"
+            />
+            <p v-if="editError" class="chat-send-error">{{ editError }}</p>
+            <div class="chat-edit-actions">
+              <button type="button" class="btn btn-secondary" :disabled="editSaving" @click="cancelEdit">
+                Отмена
+              </button>
+              <button type="button" class="btn" :disabled="editSaving" @click="saveEdit(m)">Сохранить</button>
+            </div>
+          </template>
+          <p v-else-if="m.text" class="chat-bubble-text">{{ m.text }}</p>
+
+          <span class="chat-bubble-time">
+            {{ formatTime(m.created_at) }}
+            <template v-if="m.edited_at">· изменено</template>
+          </span>
         </div>
       </div>
     </div>
 
     <p v-if="sendError" class="chat-send-error">{{ sendError }}</p>
 
+    <div v-if="pendingImage" class="chat-pending-image">
+      <div class="chat-pending-image-thumb">
+        <img :src="pendingImage.previewUrl" alt="" />
+        <span v-if="pendingImage.uploading" class="chat-pending-image-uploading">Загрузка…</span>
+      </div>
+      <button type="button" class="chat-pending-image-remove" @click="clearPendingImage">✕</button>
+    </div>
+
     <form class="chat-input-row" @submit.prevent="send">
+      <input ref="fileInput" type="file" accept="image/*" style="display: none" @change="onFileSelected" />
+      <button
+        type="button"
+        class="chat-attach-btn"
+        :disabled="sending || pendingImage?.uploading"
+        @click="pickImage"
+      >
+        📎
+      </button>
       <input
         v-model="draft"
         type="text"
@@ -177,7 +387,9 @@ onBeforeUnmount(() => {
         maxlength="500"
         :disabled="sending"
       />
-      <button type="submit" class="btn chat-send-btn" :disabled="sending || !draft.trim()">Отправить</button>
+      <button type="submit" class="btn chat-send-btn" :disabled="!canSend">Отправить</button>
     </form>
+
+    <ImageZoom :open="!!zoomSrc" :src="zoomSrc || ''" @close="zoomSrc = null" />
   </div>
 </template>
