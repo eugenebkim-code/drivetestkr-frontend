@@ -1,6 +1,7 @@
 import { useMiniApp } from "vue-tg/7.0";
 
 import type {
+  AdminDailyStatsOut,
   AdminStatsOut,
   AdminUserOut,
   ChatMessage,
@@ -124,6 +125,7 @@ export const api = {
       body: JSON.stringify({ daily_goal: dailyGoal }),
     }),
   adminStats: () => request<AdminStatsOut>("/api/admin/stats"),
+  adminDailyStats: () => request<AdminDailyStatsOut>("/api/admin/stats/daily"),
   adminUsers: () => request<AdminUserOut[]>("/api/admin/users"),
   adminMessageUser: (userId: number, text: string) =>
     request<{ ok: boolean }>(`/api/admin/users/${userId}/message`, {

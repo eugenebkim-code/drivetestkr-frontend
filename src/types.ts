@@ -158,6 +158,18 @@ export interface AdminStatsOut {
   total_visits: number;
 }
 
+export interface AdminDailyStat {
+  date: string;
+  visits: number;
+  new_users: number;
+}
+
+export interface AdminDailyStatsOut {
+  today_visits: number;
+  yesterday_visits: number;
+  days: AdminDailyStat[];
+}
+
 export interface AdminUserOut {
   user_id: number;
   username: string | null;
