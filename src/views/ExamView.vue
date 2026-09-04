@@ -18,12 +18,15 @@ const locked = ref(false);
 const questions = ref<QuestionExam[]>([]);
 const examAttemptId = ref<number | null>(null);
 const idx = ref(0);
-const selected = ref<string[]>([]);
-const answers = ref<ExamAnswerIn[]>([]);
+// Keyed by question_id rather than an append-only list, so navigating back
+// to an already-answered question shows (and lets you change) what you
+// picked, instead of only ever seeing a blank card.
+const answersByQid = ref<Record<string, string[]>>({});
 const finishing = ref(false);
 
 const current = computed<QuestionExam | null>(() => questions.value[idx.value] ?? null);
 const total = computed(() => questions.value.length);
+const selected = computed<string[]>(() => (current.value ? answersByQid.value[current.value.id] ?? [] : []));
 
 // Deadline is a fixed wall-clock timestamp (server start time + fixed
 // duration), not a locally-decremented counter — so it stays correct even
@@ -80,15 +83,12 @@ onMounted(async () => {
   }
 });
 
-function recordAnswer(letters: string[]) {
-  if (!current.value) return;
-  answers.value.push({ question_id: current.value.id, selected_letters: letters });
-  selected.value = [];
-  if (idx.value < questions.value.length - 1) {
-    idx.value += 1;
-  } else {
-    finish();
-  }
+function goPrev() {
+  if (idx.value > 0) idx.value -= 1;
+}
+
+function goNext() {
+  if (idx.value < questions.value.length - 1) idx.value += 1;
 }
 
 function selectLetter(letter: string) {
@@ -97,10 +97,11 @@ function selectLetter(letter: string) {
     const s = selected.value.includes(letter)
       ? selected.value.filter((l) => l !== letter)
       : [...selected.value, letter].slice(-2);
-    selected.value = s;
-    if (s.length === 2) recordAnswer(s);
+    answersByQid.value[current.value.id] = s;
+    if (s.length === 2) goNext();
   } else {
-    recordAnswer([letter]);
+    answersByQid.value[current.value.id] = [letter];
+    goNext();
   }
 }
 
@@ -109,9 +110,12 @@ async function finish() {
   stopTimer();
   finishing.value = true;
   try {
+    const answers: ExamAnswerIn[] = Object.entries(answersByQid.value).map(
+      ([question_id, selected_letters]) => ({ question_id, selected_letters }),
+    );
     const result = await api.examFinish({
       exam_attempt_id: examAttemptId.value,
-      answers: answers.value,
+      answers,
     });
     examResultStore.set(result, questions.value);
     router.replace({ name: "exam-result" });
@@ -153,6 +157,19 @@ async function finish() {
         :disabled="timeIsUp"
         @select="selectLetter"
       />
+
+      <div class="nav-row">
+        <button type="button" class="btn btn-secondary" :disabled="idx === 0" @click="goPrev">← Назад</button>
+        <button
+          v-if="idx < total - 1"
+          type="button"
+          class="btn btn-secondary"
+          @click="goNext"
+        >
+          Далее →
+        </button>
+        <button v-else type="button" class="btn" :disabled="timeIsUp" @click="finish">Завершить экзамен</button>
+      </div>
     </template>
   </div>
 </template>
