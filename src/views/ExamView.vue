@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import { useRouter } from "vue-router";
 
 import { api } from "../api/client";
@@ -13,7 +13,8 @@ import type { ExamAnswerIn, QuestionExam } from "../types";
 useBackToHome();
 const router = useRouter();
 
-const loading = ref(true);
+const intro = ref(true);
+const loading = ref(false);
 const locked = ref(false);
 const questions = ref<QuestionExam[]>([]);
 const examAttemptId = ref<number | null>(null);
@@ -67,7 +68,8 @@ function stopTimer() {
 
 onBeforeUnmount(stopTimer);
 
-onMounted(async () => {
+async function startExam() {
+  loading.value = true;
   try {
     const res = await api.examStart();
     locked.value = res.locked;
@@ -78,10 +80,11 @@ onMounted(async () => {
       tick();
       timerHandle = setInterval(tick, 1000);
     }
+    intro.value = false;
   } finally {
     loading.value = false;
   }
-});
+}
 
 function goPrev() {
   if (idx.value > 0) idx.value -= 1;
@@ -127,7 +130,29 @@ async function finish() {
 
 <template>
   <div class="screen">
-    <div v-if="loading">Загрузка…</div>
+    <div v-if="intro" class="card glass exam-intro">
+      <p class="exam-intro-greeting">Здравствуйте! 👋</p>
+      <p>
+        Вы выбрали пробный письменный экзамен на водительские права в Корее. Экзамен максимально
+        приближён к настоящему: 40 вопросов — 21 простой, 7 с фотографиями, 7 с иллюстрациями и 5
+        на знаки. На прохождение даётся 40 минут.
+      </p>
+      <p>
+        Кнопки под вопросом позволяют вернуться назад и исправить ответ. Переключатель языка
+        сверху показывает вопрос на русском или английском — но помните: настоящий экзамен
+        принимают только на английском или корейском языке.
+      </p>
+      <p>
+        Проходной балл — 60. Если наберёте его 6–7 раз подряд здесь — смело идите сдавать
+        настоящий, шанс успеха близок к 100%.
+      </p>
+      <p class="exam-intro-wish">Удачи вам! 🍀</p>
+      <button type="button" class="btn" style="width: 100%" :disabled="loading" @click="startExam">
+        {{ loading ? "Загрузка…" : "Начать экзамен" }}
+      </button>
+    </div>
+
+    <div v-else-if="loading">Загрузка…</div>
 
     <div
       v-else-if="locked"
