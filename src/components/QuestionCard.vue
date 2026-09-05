@@ -55,7 +55,14 @@ function optionClass(letter: string) {
     <p class="question-text">{{ questionText }}</p>
   </div>
 
-  <div v-if="question.image_url" class="question-image-wrap" @click="zoomOpen = true">
+  <video
+    v-if="question.video_url"
+    :src="imageUrl(question.video_url)!"
+    controls
+    playsinline
+    class="question-video"
+  />
+  <div v-else-if="question.image_url" class="question-image-wrap" @click="zoomOpen = true">
     <img :src="imageUrl(question.image_url)!" alt="" class="question-image" />
     <span class="question-image-zoom-hint">🔍</span>
   </div>
@@ -88,6 +95,13 @@ function optionClass(letter: string) {
   width: 100%;
   border-radius: var(--radius-md);
   display: block;
+}
+
+.question-video {
+  width: 100%;
+  border-radius: var(--radius-md);
+  display: block;
+  background: #000;
 }
 
 .question-image-zoom-hint {

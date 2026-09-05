@@ -24,6 +24,7 @@ export interface MeOut {
 export interface QuestionBase {
   id: string;
   image_url: string | null;
+  video_url: string | null;
   question_en: string;
   question_ru: string;
   option_a_en: string | null;
