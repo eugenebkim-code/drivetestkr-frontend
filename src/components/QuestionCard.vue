@@ -57,9 +57,11 @@ function optionClass(letter: string) {
 
   <video
     v-if="question.video_url"
+    :key="question.id"
     :src="imageUrl(question.video_url)!"
     controls
     playsinline
+    preload="metadata"
     class="question-video"
   />
   <div v-else-if="question.image_url" class="question-image-wrap" @click="zoomOpen = true">
