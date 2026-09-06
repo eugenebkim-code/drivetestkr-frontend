@@ -154,6 +154,8 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ text }),
     }),
+  chatDelete: (messageId: number) =>
+    request<{ ok: boolean }>(`/api/chat/messages/${messageId}`, { method: "DELETE" }),
   chatUploadImage: (file: File) => upload<ChatUploadOut>("/api/chat/upload", file),
   chatPinned: () => request<ChatMessage[]>("/api/chat/pinned"),
   chatPin: (messageId: number) =>

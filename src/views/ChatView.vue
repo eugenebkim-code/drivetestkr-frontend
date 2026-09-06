@@ -41,6 +41,9 @@ const editDraft = ref("");
 const editSaving = ref(false);
 const editError = ref<string | null>(null);
 
+const deleting = ref<number | null>(null);
+const deleteError = ref<string | null>(null);
+
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 let lastId = 0;
 let firstId: number | null = null;
@@ -141,6 +144,22 @@ async function saveEdit(m: ChatMessage) {
     editError.value = "Не удалось сохранить изменения";
   } finally {
     editSaving.value = false;
+  }
+}
+
+async function deleteMessage(m: ChatMessage) {
+  if (deleting.value !== null) return;
+  if (!window.confirm("Удалить это сообщение? Действие необратимо.")) return;
+  deleting.value = m.id;
+  deleteError.value = null;
+  try {
+    await api.chatDelete(m.id);
+    messages.value = messages.value.filter((msg) => msg.id !== m.id);
+    pinned.value = pinned.value.filter((p) => p.id !== m.id);
+  } catch {
+    deleteError.value = "Не удалось удалить сообщение";
+  } finally {
+    deleting.value = null;
   }
 }
 
@@ -323,6 +342,15 @@ onBeforeUnmount(() => {
             >
               {{ m.is_pinned ? "Открепить" : "Закрепить" }}
             </button>
+            <button
+              v-if="isAdmin"
+              type="button"
+              class="chat-bubble-delete-btn"
+              :disabled="deleting === m.id"
+              @click="deleteMessage(m)"
+            >
+              Удалить
+            </button>
           </div>
 
           <img
@@ -360,6 +388,7 @@ onBeforeUnmount(() => {
     </div>
 
     <p v-if="sendError" class="chat-send-error">{{ sendError }}</p>
+    <p v-if="deleteError" class="chat-send-error">{{ deleteError }}</p>
 
     <div v-if="pendingImage" class="chat-pending-image">
       <div class="chat-pending-image-thumb">
