@@ -167,6 +167,11 @@ export const api = {
   chatDelete: (messageId: number) =>
     request<{ ok: boolean }>(`/api/chat/messages/${messageId}`, { method: "DELETE" }),
   chatUploadImage: (file: File) => upload<ChatUploadOut>("/api/chat/upload", file),
+  chatReact: (messageId: number, emoji: string) =>
+    request<ChatMessage>(`/api/chat/messages/${messageId}/react`, {
+      method: "POST",
+      body: JSON.stringify({ emoji }),
+    }),
   chatPinned: () => request<ChatMessage[]>("/api/chat/pinned"),
   chatPin: (messageId: number) =>
     request<ChatMessage>(`/api/chat/messages/${messageId}/pin`, { method: "POST" }),

@@ -44,6 +44,12 @@ const editError = ref<string | null>(null);
 const deleting = ref<number | null>(null);
 const deleteError = ref<string | null>(null);
 
+// Fixed palette, mirrors the backend's ALLOWED_REACTIONS (app/routers/chat.py)
+// — a mix of positive and negative so a reaction can express disagreement,
+// not just approval.
+const REACTIONS = ["👍", "❤️", "😂", "🔥", "👎", "😢"];
+const reacting = ref<number | null>(null);
+
 let pollHandle: ReturnType<typeof setInterval> | null = null;
 let lastId = 0;
 let firstId: number | null = null;
@@ -160,6 +166,20 @@ async function deleteMessage(m: ChatMessage) {
     deleteError.value = "Не удалось удалить сообщение";
   } finally {
     deleting.value = null;
+  }
+}
+
+async function toggleReaction(m: ChatMessage, emoji: string) {
+  if (reacting.value !== null) return;
+  reacting.value = m.id;
+  try {
+    const updated = await api.chatReact(m.id, emoji);
+    messages.value = messages.value.map((msg) => (msg.id === m.id ? updated : msg));
+  } catch {
+    // Low-stakes action — a failed tap just leaves the reaction as it was,
+    // not worth a dedicated error message.
+  } finally {
+    reacting.value = null;
   }
 }
 
@@ -378,6 +398,21 @@ onBeforeUnmount(() => {
             </div>
           </template>
           <p v-else-if="m.text" class="chat-bubble-text">{{ m.text }}</p>
+
+          <div class="chat-reactions">
+            <button
+              v-for="emoji in REACTIONS"
+              :key="emoji"
+              type="button"
+              class="chat-reaction-chip"
+              :class="{ active: m.my_reaction === emoji, 'has-count': !!m.reactions[emoji] }"
+              :disabled="reacting === m.id"
+              @click="toggleReaction(m, emoji)"
+            >
+              {{ emoji }}
+              <span v-if="m.reactions[emoji]" class="chat-reaction-count">{{ m.reactions[emoji] }}</span>
+            </button>
+          </div>
 
           <span class="chat-bubble-time">
             {{ formatTime(m.created_at) }}

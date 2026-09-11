@@ -95,6 +95,8 @@ export interface ChatMessage {
   edited_at: string | null;
   is_admin: boolean;
   is_pinned: boolean;
+  reactions: Record<string, number>;
+  my_reaction: string | null;
 }
 
 export interface ExamQuestionResult {
