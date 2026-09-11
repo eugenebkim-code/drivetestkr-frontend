@@ -39,6 +39,7 @@ async function checkin() {
       profile.value.checked_in_today = res.checked_in_today;
       if (res.bonus_exam_granted) {
         profile.value.bonus_trial_attempts += 1;
+        profile.value.bonus_drill_unlocks += 1;
         justGotBonus.value = true;
       }
     }
@@ -91,12 +92,22 @@ onMounted(load);
           {{ profile.checked_in_today ? "✅ Отмечено сегодня" : "Отметиться сегодня" }}
         </button>
         <p v-if="justGotBonus" class="streak-reward-banner">
-          🎁 7 дней подряд! Вам начислена бесплатная попытка пробного экзамена
+          🎁 7 дней подряд! Начислены попытка пробного экзамена и бесплатное открытие Интенсива
         </p>
-        <p v-else-if="profile.bonus_trial_attempts > 0" class="badge badge-active" style="margin-top: var(--space-2)">
-          🎁 Бонусных попыток экзамена: {{ profile.bonus_trial_attempts }}
+        <div
+          v-else-if="profile.bonus_trial_attempts > 0 || profile.bonus_drill_unlocks > 0"
+          style="display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: var(--space-2)"
+        >
+          <p v-if="profile.bonus_trial_attempts > 0" class="badge badge-active">
+            🎁 Попыток экзамена: {{ profile.bonus_trial_attempts }}
+          </p>
+          <p v-if="profile.bonus_drill_unlocks > 0" class="badge badge-active">
+            🎁 Открытий Интенсива: {{ profile.bonus_drill_unlocks }}
+          </p>
+        </div>
+        <p class="profile-hero-streak-hint">
+          Каждые 7 дней подряд — попытка экзамена и открытие Интенсива
         </p>
-        <p class="profile-hero-streak-hint">Каждые 7 дней подряд — бесплатная попытка пробного экзамена</p>
       </div>
 
       <section>

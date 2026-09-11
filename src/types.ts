@@ -147,6 +147,7 @@ export interface ProfileOut {
   streak_days: number;
   checked_in_today: boolean;
   bonus_trial_attempts: number;
+  bonus_drill_unlocks: number;
 }
 
 export interface CheckinOut {
