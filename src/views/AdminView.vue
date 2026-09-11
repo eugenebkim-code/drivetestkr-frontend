@@ -4,15 +4,61 @@ import { useRouter } from "vue-router";
 
 import { api } from "../api/client";
 import { useBackToHome } from "../composables/useBackToHome";
-import type { AdminDailyStatsOut, AdminStatsOut, AdminUserOut } from "../types";
+import type {
+  AdminDailyStatsOut,
+  AdminExamStatsOut,
+  AdminStatsOut,
+  AdminUserOut,
+  SectionVisitOut,
+} from "../types";
 
 useBackToHome();
 const router = useRouter();
+
+const SECTION_LABELS: Record<string, string> = {
+  menu: "🏠 Меню",
+  learn: "📖 Обучение",
+  drill: "🎯 Интенсив",
+  exam: "📝 Экзамен",
+  profile: "👤 Профиль",
+  chat: "💬 Чат",
+  about: "ℹ️ О нас",
+  redeem: "🎟️ Промокод",
+};
+
+function sectionLabel(section: string | null): string {
+  if (!section) return "—";
+  return SECTION_LABELS[section] ?? section;
+}
+
+function pct(n: number, total: number): string {
+  return total > 0 ? String(Math.round((n / total) * 100)) : "0";
+}
 
 const loading = ref(true);
 const forbidden = ref(false);
 const stats = ref<AdminStatsOut | null>(null);
 const users = ref<AdminUserOut[]>([]);
+const examStats = ref<AdminExamStatsOut | null>(null);
+
+const openActivityFor = ref<number | null>(null);
+const activityLoading = ref<number | null>(null);
+const activityCache = ref<Map<number, SectionVisitOut[]>>(new Map());
+
+async function toggleActivity(userId: number) {
+  if (openActivityFor.value === userId) {
+    openActivityFor.value = null;
+    return;
+  }
+  openActivityFor.value = userId;
+  if (activityCache.value.has(userId)) return;
+  activityLoading.value = userId;
+  try {
+    activityCache.value.set(userId, await api.adminUserActivity(userId));
+  } finally {
+    activityLoading.value = null;
+  }
+}
 
 const activeTab = ref<"overview" | "visits">("overview");
 const dailyStats = ref<AdminDailyStatsOut | null>(null);
@@ -48,9 +94,14 @@ const messageSending = ref(false);
 async function load() {
   loading.value = true;
   try {
-    const [s, u] = await Promise.all([api.adminStats(), api.adminUsers()]);
+    const [s, u, ex] = await Promise.all([
+      api.adminStats(),
+      api.adminUsers(),
+      api.adminExamStats(),
+    ]);
     stats.value = s;
     users.value = u;
+    examStats.value = ex;
   } catch (e) {
     if (e instanceof Error && e.message.includes("403")) {
       forbidden.value = true;
@@ -178,6 +229,42 @@ onMounted(load);
         </div>
       </div>
 
+      <div v-if="examStats" class="card glass">
+        <p style="font-weight: 600; margin-bottom: var(--space-2)">
+          Экзамены <span style="color: var(--tg-hint-color); font-weight: 400">(без вас)</span>
+        </p>
+        <div class="result-row">
+          <span>Начато</span>
+          <span style="margin-left: auto; font-size: 13px; color: var(--tg-hint-color)">
+            {{ examStats.started }}
+          </span>
+        </div>
+        <div class="result-row">
+          <span>Завершено</span>
+          <span style="margin-left: auto; font-size: 13px; color: var(--tg-hint-color)">
+            {{ examStats.finished }} ({{ pct(examStats.finished, examStats.started) }}%)
+          </span>
+        </div>
+        <div class="result-row">
+          <span>Сдали</span>
+          <span style="margin-left: auto; font-size: 13px; color: var(--tg-hint-color)">
+            {{ examStats.passed }} ({{ pct(examStats.passed, examStats.finished) }}%)
+          </span>
+        </div>
+        <div class="result-row">
+          <span>Бросили на середине</span>
+          <span style="margin-left: auto; font-size: 13px; color: var(--tg-hint-color)">
+            {{ examStats.abandoned }} ({{ pct(examStats.abandoned, examStats.started) }}%)
+          </span>
+        </div>
+        <div class="result-row">
+          <span>Средний балл</span>
+          <span style="margin-left: auto; font-size: 13px; color: var(--tg-hint-color)">
+            {{ examStats.avg_score ?? "—" }}
+          </span>
+        </div>
+      </div>
+
       <div class="card glass">
         <p style="font-weight: 600; margin-bottom: var(--space-2)">Рассылка всем пользователям</p>
         <textarea
@@ -227,6 +314,40 @@ onMounted(load);
             >
               ✉️
             </button>
+          </div>
+          <button
+            type="button"
+            class="btn-secondary"
+            style="
+              font-size: 12px;
+              padding: 2px 8px;
+              border-radius: var(--radius-md);
+              margin: 2px 0 var(--space-2);
+            "
+            @click="toggleActivity(u.user_id)"
+          >
+            {{ sectionLabel(u.last_section) }} · {{ formatDate(u.last_section_at) }}
+          </button>
+          <div v-if="openActivityFor === u.user_id" style="margin-bottom: var(--space-2)">
+            <p v-if="activityLoading === u.user_id" style="font-size: 12px; color: var(--tg-hint-color)">
+              Загрузка…
+            </p>
+            <template v-else>
+              <p
+                v-if="(activityCache.get(u.user_id) ?? []).length === 0"
+                style="font-size: 12px; color: var(--tg-hint-color)"
+              >
+                Нет истории переходов
+              </p>
+              <div
+                v-for="(a, i) in activityCache.get(u.user_id)"
+                :key="i"
+                style="display: flex; justify-content: space-between; font-size: 12px; padding: 2px 0"
+              >
+                <span>{{ sectionLabel(a.section) }}</span>
+                <span style="color: var(--tg-hint-color)">{{ formatDate(a.visited_at) }}</span>
+              </div>
+            </template>
           </div>
           <div v-if="openMessageFor === u.user_id" class="nav-row" style="margin: var(--space-2) 0">
             <input

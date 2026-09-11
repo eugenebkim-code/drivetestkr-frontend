@@ -179,4 +179,19 @@ export interface AdminUserOut {
   visit_count: number;
   subscription_active: boolean;
   subscription_expires_at: string | null;
+  last_section: string | null;
+  last_section_at: string | null;
+}
+
+export interface SectionVisitOut {
+  section: string;
+  visited_at: string;
+}
+
+export interface AdminExamStatsOut {
+  started: number;
+  finished: number;
+  passed: number;
+  abandoned: number;
+  avg_score: number | null;
 }

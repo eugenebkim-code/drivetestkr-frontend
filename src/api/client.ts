@@ -2,6 +2,7 @@ import { useMiniApp } from "vue-tg/7.0";
 
 import type {
   AdminDailyStatsOut,
+  AdminExamStatsOut,
   AdminStatsOut,
   AdminUserOut,
   ChatMessage,
@@ -15,6 +16,7 @@ import type {
   LicenseRedeemOut,
   MeOut,
   ProfileOut,
+  SectionVisitOut,
 } from "../types";
 
 // Frontend and backend are separate Railway services/repos — set at build
@@ -93,6 +95,11 @@ async function upload<T>(path: string, file: File): Promise<T> {
 
 export const api = {
   me: () => request<MeOut>("/api/me"),
+  trackSection: (section: string) =>
+    request<{ ok: boolean }>("/api/track-section", {
+      method: "POST",
+      body: JSON.stringify({ section }),
+    }),
   learnSession: () => request<LearnSessionOut>("/api/learn/session"),
   learnExhaust: () => request<{ ok: boolean }>("/api/learn/exhaust", { method: "POST" }),
   learnProgress: (questionId: string) =>
@@ -127,6 +134,9 @@ export const api = {
   adminStats: () => request<AdminStatsOut>("/api/admin/stats"),
   adminDailyStats: () => request<AdminDailyStatsOut>("/api/admin/stats/daily"),
   adminUsers: () => request<AdminUserOut[]>("/api/admin/users"),
+  adminUserActivity: (userId: number) =>
+    request<SectionVisitOut[]>(`/api/admin/users/${userId}/activity`),
+  adminExamStats: () => request<AdminExamStatsOut>("/api/admin/stats/exam"),
   adminMessageUser: (userId: number, text: string) =>
     request<{ ok: boolean }>(`/api/admin/users/${userId}/message`, {
       method: "POST",

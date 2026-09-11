@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 
+import { api } from "../api/client";
 import HomeView from "../views/HomeView.vue";
 
 // Real (path-based) history, NOT hash history — Telegram launches Mini Apps
@@ -28,6 +29,34 @@ const router = createRouter({
     { path: "/chat", name: "chat", component: () => import("../views/ChatView.vue") },
     { path: "/admin", name: "admin", component: () => import("../views/AdminView.vue") },
   ],
+});
+
+// Route name → app "section" as understood by the backend's
+// section_visit_log (app/routers/me.py's ALLOWED_SECTIONS — keep in sync).
+// "admin" is deliberately absent: the admin's own poking-around isn't a
+// user-activity signal worth logging, same reasoning as excluding the
+// admin's own visits from the analytics counters elsewhere.
+const ROUTE_SECTION: Record<string, string> = {
+  home: "menu",
+  learn: "learn",
+  drill: "drill",
+  exam: "exam",
+  "exam-result": "exam",
+  redeem: "redeem",
+  profile: "profile",
+  about: "about",
+  chat: "chat",
+};
+
+let lastTrackedSection: string | null = null;
+
+router.afterEach((to) => {
+  const section = ROUTE_SECTION[to.name as string];
+  if (!section || section === lastTrackedSection) return;
+  lastTrackedSection = section;
+  // Fire-and-forget — a failed/slow tracking call must never block or
+  // affect navigation.
+  api.trackSection(section).catch(() => {});
 });
 
 export default router;
