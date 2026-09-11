@@ -146,11 +146,13 @@ export interface ProfileOut {
   exam_history: ExamHistoryItem[];
   streak_days: number;
   checked_in_today: boolean;
+  bonus_trial_attempts: number;
 }
 
 export interface CheckinOut {
   streak_days: number;
   checked_in_today: boolean;
+  bonus_exam_granted: boolean;
 }
 
 export interface AdminStatsOut {

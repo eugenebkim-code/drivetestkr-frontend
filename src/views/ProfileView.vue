@@ -12,6 +12,7 @@ const loading = ref(true);
 const profile = ref<ProfileOut | null>(null);
 const checkingIn = ref(false);
 const customGoal = ref("");
+const justGotBonus = ref(false);
 
 const goalOptions = [20, 30, 100];
 
@@ -36,6 +37,10 @@ async function checkin() {
     if (profile.value) {
       profile.value.streak_days = res.streak_days;
       profile.value.checked_in_today = res.checked_in_today;
+      if (res.bonus_exam_granted) {
+        profile.value.bonus_trial_attempts += 1;
+        justGotBonus.value = true;
+      }
     }
   } finally {
     checkingIn.value = false;
@@ -85,6 +90,13 @@ onMounted(load);
         >
           {{ profile.checked_in_today ? "✅ Отмечено сегодня" : "Отметиться сегодня" }}
         </button>
+        <p v-if="justGotBonus" class="streak-reward-banner">
+          🎁 7 дней подряд! Вам начислена бесплатная попытка пробного экзамена
+        </p>
+        <p v-else-if="profile.bonus_trial_attempts > 0" class="badge badge-active" style="margin-top: var(--space-2)">
+          🎁 Бонусных попыток экзамена: {{ profile.bonus_trial_attempts }}
+        </p>
+        <p class="profile-hero-streak-hint">Каждые 7 дней подряд — бесплатная попытка пробного экзамена</p>
       </div>
 
       <section>
