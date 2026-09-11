@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 
 import { api } from "../api/client";
@@ -48,16 +48,19 @@ const activityCache = ref<Map<number, SectionVisitOut[]>>(new Map());
 async function toggleActivity(userId: number) {
   if (openActivityFor.value === userId) {
     openActivityFor.value = null;
+    nextTick(updateThumb);
     return;
   }
   openActivityFor.value = userId;
-  if (activityCache.value.has(userId)) return;
-  activityLoading.value = userId;
-  try {
-    activityCache.value.set(userId, await api.adminUserActivity(userId));
-  } finally {
-    activityLoading.value = null;
+  if (!activityCache.value.has(userId)) {
+    activityLoading.value = userId;
+    try {
+      activityCache.value.set(userId, await api.adminUserActivity(userId));
+    } finally {
+      activityLoading.value = null;
+    }
   }
+  nextTick(updateThumb);
 }
 
 const activeTab = ref<"overview" | "visits">("overview");
@@ -147,6 +150,75 @@ function formatDate(iso: string | null): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
+
+// Drag-to-scroll thumb for the (potentially 90+ row) user list — plain
+// browser scrollbars are invisible in Telegram's mobile WebView, so without
+// this the only way to move through the list is a long touch-drag on the
+// content itself.
+const MIN_THUMB_PX = 32;
+const userListEl = ref<HTMLElement | null>(null);
+const thumbTop = ref(0);
+const thumbHeight = ref(0);
+const thumbVisible = ref(false);
+let hideTimer: ReturnType<typeof setTimeout> | null = null;
+let dragging = false;
+let dragStartY = 0;
+let dragStartScrollTop = 0;
+
+function updateThumb() {
+  const el = userListEl.value;
+  if (!el) return;
+  const scrollable = el.scrollHeight - el.clientHeight;
+  if (scrollable <= 0) {
+    thumbVisible.value = false;
+    return;
+  }
+  const trackHeight = el.clientHeight;
+  thumbHeight.value = Math.max(trackHeight * (trackHeight / el.scrollHeight), MIN_THUMB_PX);
+  const maxThumbTravel = trackHeight - thumbHeight.value;
+  thumbTop.value = (el.scrollTop / scrollable) * maxThumbTravel;
+}
+
+function showThumbTemporarily() {
+  thumbVisible.value = true;
+  if (hideTimer) clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => {
+    if (!dragging) thumbVisible.value = false;
+  }, 900);
+}
+
+function onListScroll() {
+  updateThumb();
+  showThumbTemporarily();
+}
+
+function onThumbPointerDown(e: PointerEvent) {
+  dragging = true;
+  dragStartY = e.clientY;
+  dragStartScrollTop = userListEl.value?.scrollTop ?? 0;
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  showThumbTemporarily();
+}
+
+function onThumbPointerMove(e: PointerEvent) {
+  if (!dragging || !userListEl.value) return;
+  const el = userListEl.value;
+  const scrollable = el.scrollHeight - el.clientHeight;
+  const maxThumbTravel = el.clientHeight - thumbHeight.value;
+  if (maxThumbTravel <= 0) return;
+  const deltaScroll = ((e.clientY - dragStartY) / maxThumbTravel) * scrollable;
+  el.scrollTop = Math.min(Math.max(dragStartScrollTop + deltaScroll, 0), scrollable);
+}
+
+function onThumbPointerUp() {
+  dragging = false;
+  showThumbTemporarily();
+}
+
+watch(users, () => nextTick(updateThumb));
+onBeforeUnmount(() => {
+  if (hideTimer) clearTimeout(hideTimer);
+});
 
 onMounted(load);
 </script>
@@ -296,6 +368,8 @@ onMounted(load);
 
       <div class="card glass">
         <p style="font-weight: 600; margin-bottom: var(--space-2)">Пользователи</p>
+        <div class="scroll-wrap">
+        <div ref="userListEl" class="scroll-list" @scroll="onListScroll">
         <div v-for="u in users" :key="u.user_id">
           <div class="result-row">
             <span>
@@ -371,8 +445,55 @@ onMounted(load);
             </button>
           </div>
         </div>
+        </div>
+        <div
+          v-if="thumbVisible"
+          class="scroll-thumb"
+          :style="{ height: thumbHeight + 'px', transform: `translateY(${thumbTop}px)` }"
+          @pointerdown="onThumbPointerDown"
+          @pointermove="onThumbPointerMove"
+          @pointerup="onThumbPointerUp"
+          @pointercancel="onThumbPointerUp"
+        />
+        </div>
       </div>
       </template>
     </template>
   </div>
 </template>
+
+<style scoped>
+.scroll-wrap {
+  position: relative;
+}
+
+.scroll-list {
+  max-height: 55vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 10px;
+  /* Custom thumb below replaces the native one so we don't show both. */
+  scrollbar-width: none;
+}
+
+.scroll-list::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-thumb {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  border-radius: 3px;
+  background: var(--tg-hint-color);
+  opacity: 0.5;
+  touch-action: none;
+  transition: opacity 0.15s;
+}
+
+.scroll-thumb:active {
+  opacity: 0.85;
+  width: 7px;
+}
+</style>
